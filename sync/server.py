@@ -11,7 +11,8 @@ my_dict = dict()
 
 
 class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-    def log(self, text):
+    @staticmethod
+    def log(text):
         print text
 
     def do_HEAD(s):
@@ -20,7 +21,9 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.end_headers()
 
     def do_GET(s):
-        global files_info
+        '''
+        retrieves entry from the server memory
+        '''
         global my_dict
         req_path = s.path
         s.send_response(200)
@@ -31,7 +34,9 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.wfile.write("</body></html>")
 
     def do_POST(s):
-        global files_info
+        '''
+        save entry into server memory
+        '''
         global my_dict
         req_path = s.path
         s.send_response(200)
@@ -41,32 +46,29 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         my_dict[req_path] = files_info
         s.wfile.write("<html><body>" + files_info + "</body></html>")
 
-    def do_UPLOAD(s):
+    def do_UPLOAD(s):  # exploit, path './../../../../[etc]' may lead to system corruption
         '''
         file transfer from client to server
         '''
         upload_path, upload_filename = os.path.split(os.path.abspath(s.path.lstrip('/')))
         try:
             os.makedirs(upload_path)
-        except os.error, e:
+        except os.error:
             s.log('directory exists or cannot be created')
-            #s.send_response(400)
-            #s.end_headers()
-            #return
         output_stream = open(os.path.join(upload_path, upload_filename), "w")
         s.send_response(200)
         s.send_header("Content-type", "text/html")
         s.end_headers()
 
         file_data_len = s.headers.getheader('content-length')
-        file_data_len = 0 if file_data_len == None else int(file_data_len)
+        file_data_len = 0 if file_data_len is None else int(file_data_len)
 
         file_data = s.rfile.read(file_data_len)
         output_stream.write(file_data)
         s.wfile.write("<html><body> got " + os.path.join(upload_path, upload_filename) + "</body></html>")
         output_stream.close()
 
-    def do_DOWNLOAD(s):
+    def do_DOWNLOAD(s):  # exploit, path './../../../../[etc]' may lead to system corruption
         '''
         File transfer from server to client
         '''
@@ -97,7 +99,6 @@ class MyHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    files_info = "AAAA"
     server_class = BaseHTTPServer.HTTPServer
     httpd = server_class((HOST_NAME, PORT_NUMBER), MyHandler)
     print time.asctime(), "Server Starts - %s:%s" % (HOST_NAME, PORT_NUMBER)
